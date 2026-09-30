@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Bitácora · Control de horas{% endblock %}
+{% block content %}
+<div class="card table-wrap">
+  <h2>Bitácora de auditoría</h2>
+  <p class="hint">Solo lectura. Últimos 500 eventos, del más reciente al más antiguo.</p>
+  <table>
+    <thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>IP</th></tr></thead>
+    <tbody>
+      {% for r in regs %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.fecha.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ r.usuario }}</td>
+        <td>{{ r.accion }}</td>
+        <td>{{ r.detalle }}</td>
+        <td>{{ r.ip }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">Sin eventos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

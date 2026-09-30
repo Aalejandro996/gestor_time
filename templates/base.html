@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Control de horas{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% if me %}
+  <header class="topbar">
+    <strong>Control de horas</strong>
+    <nav>
+      <a href="/">Tareas</a>
+      {% if me.rol == 'Admin' %}
+        <a href="/usuarios">Usuarios</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/bitacora">Bitácora</a>
+      {% endif %}
+    </nav>
+    <span class="topbar-user">{{ me.full }} · {{ me.rol }} · <a href="/logout">Salir</a></span>
+  </header>
+  {% endif %}
+
+  <main>
+    {% for m in get_flashed_messages() %}
+      <div class="alert" role="alert">{{ m }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios · Control de horas{% endblock %}
+{% block content %}
+<form method="post" class="card">
+  <h2>Registrar usuario</h2>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="grid">
+    <div class="field"><label for="nombre">Nombre</label><input id="nombre" name="nombre" required></div>
+    <div class="field"><label for="apellido">Apellido</label><input id="apellido" name="apellido" required></div>
+    <div class="field"><label for="username">Usuario</label><input id="username" name="username" required></div>
+    <div class="field">
+      <label for="pw">Clave (mín. 8 caracteres)</label>
+      <input id="pw" name="pw" type="password" minlength="8" autocomplete="new-password" required>
+    </div>
+    <div class="field">
+      <label for="rol">Rol</label>
+      <select id="rol" name="rol"><option>Auditor</option><option>Admin</option></select>
+    </div>
+  </div>
+  <button class="btn">Crear usuario</button>
+</form>
+
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Nombre y apellido</th><th>Usuario</th><th>Rol</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr><td>{{ u.full }}</td><td>{{ u.username }}</td><td>{{ u.rol }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

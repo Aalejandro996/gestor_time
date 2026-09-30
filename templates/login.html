@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Ingreso · Control de horas{% endblock %}
+{% block content %}
+<form method="post" class="card card-narrow">
+  <h1>Iniciar sesión</h1>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="field">
+    <label for="username">Usuario</label>
+    <input id="username" name="username" autocomplete="username" required autofocus>
+  </div>
+  <div class="field">
+    <label for="pw">Clave</label>
+    <input id="pw" name="pw" type="password" autocomplete="current-password" required>
+  </div>
+  <button class="btn">Entrar</button>
+</form>
+{% endblock %}

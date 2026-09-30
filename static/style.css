@@ -1,0 +1,85 @@
+/* Control de horas — hoja de estilos única. Sin dependencias externas. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #fff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --topbar: #1f2937;
+  --warn-bg: #fef3c7;
+  --radius: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h1, h2 { margin: 0 0 12px; font-size: 1.15rem; }
+h1 { font-size: 1.3rem; }
+
+/* Estructura */
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  padding: 10px 20px; background: var(--topbar); color: #fff;
+}
+.topbar a { color: #fff; text-decoration: none; }
+.topbar a:hover { text-decoration: underline; }
+.topbar nav { display: flex; gap: 16px; }
+.topbar-user { margin-left: auto; }
+
+main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+
+.card {
+  margin-bottom: 16px; padding: 16px;
+  background: var(--surface); border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .12);
+}
+.card-narrow { max-width: 340px; margin: 60px auto; }
+
+.alert { margin-bottom: 12px; padding: 8px 12px; background: var(--warn-bg); border-radius: 6px; }
+.hint { margin: 0 0 12px; color: var(--muted); font-size: .85rem; }
+
+/* Formularios */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.span-all { grid-column: 1 / -1; }
+.field { margin-bottom: 8px; }
+.grid .field { margin-bottom: 0; }
+label { display: block; margin-bottom: 2px; color: var(--muted); font-size: .8rem; }
+input, select, textarea {
+  width: 100%; padding: 8px; font: inherit;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+input:focus, select:focus, textarea:focus, .btn:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 1px;
+}
+
+/* Botones */
+.btn {
+  padding: 8px 14px; border: 0; border-radius: 6px;
+  background: var(--primary); color: #fff; font: inherit; cursor: pointer;
+}
+.btn:hover { background: var(--primary-dark); }
+.btn-sm { padding: 3px 8px; background: var(--muted); font-size: .8rem; }
+.btn-sm:hover { background: #4b5563; }
+
+/* Tablas */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: .8rem; font-weight: 600; text-transform: uppercase; }
+.empty { color: var(--muted); text-align: center; }
+.actions { white-space: nowrap; }
+.actions form { display: inline; }
+
+/* Estados */
+.badge { padding: 2px 8px; border-radius: 999px; background: var(--border); font-size: .8rem; white-space: nowrap; }
+.badge-iniciado { background: #dbeafe; color: #1e40af; }
+.badge-culminado { background: #dcfce7; color: #166534; }
+.badge-suspendido { background: #fee2e2; color: #991b1b; }

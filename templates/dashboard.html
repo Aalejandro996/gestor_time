@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard · Control de horas{% endblock %}
+{% block content %}
+<div class="card table-wrap">
+  <h2>Horas por actividad</h2>
+  <table>
+    <thead><tr><th>Actividad</th><th>Horas</th></tr></thead>
+    <tbody>
+      {% for a, h in por_act.items() %}
+      <tr><td>{{ a }}</td><td>{{ '%.2f'|format(h) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card table-wrap">
+  <h2>Horas por usuario</h2>
+  <table>
+    <thead><tr><th>Usuario</th><th>Horas</th></tr></thead>
+    <tbody>
+      {% for u, h in por_user.items() %}
+      <tr><td>{{ u }}</td><td>{{ '%.2f'|format(h) }}</td></tr>
+      {% else %}
+      <tr><td colspan="2" class="empty">Sin datos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card table-wrap">
+  <h2>Usuario por actividad</h2>
+  <table>
+    <thead>
+      <tr><th>Usuario</th>{% for a in ACT %}<th>{{ a }}</th>{% endfor %}<th>Total</th></tr>
+    </thead>
+    <tbody>
+      {% for u, d in matriz.items() %}
+      <tr>
+        <td>{{ u }}</td>
+        {% for a in ACT %}<td>{{ '%.2f'|format(d.get(a, 0)) }}</td>{% endfor %}
+        <td><strong>{{ '%.2f'|format(d.values()|sum) }}</strong></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ ACT|length + 2 }}" class="empty">Sin datos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

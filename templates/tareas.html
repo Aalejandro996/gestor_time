@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block content %}
+<form method="post" action="/tarea" class="card">
+  <h2>Registro de horas y actividad</h2>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="grid">
+    <div class="field span-all">
+      <label for="detalle">Detalle / Observación</label>
+      <textarea id="detalle" name="detalle" rows="2" required></textarea>
+    </div>
+    <div class="field">
+      <label for="actividad">Actividad</label>
+      <select id="actividad" name="actividad">
+        {% for a in ACT %}<option>{{ a }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if me.rol == 'Admin' %}
+    <div class="field">
+      <label for="resp">Responsable</label>
+      <select id="resp" name="resp">
+        {% for u in users %}
+          <option value="{{ u.id }}" {{ 'selected' if u.id == me.id }}>{{ u.full }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="field">
+      <label for="ini">Hora de inicio</label>
+      <input id="ini" type="datetime-local" name="ini">
+    </div>
+    <div class="field">
+      <label for="fin">Hora de fin</label>
+      <input id="fin" type="datetime-local" name="fin">
+    </div>
+    <div class="field">
+      <label for="estado">Estado</label>
+      <select id="estado" name="estado">
+        {% for e in ESTADOS %}<option>{{ e }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <button class="btn">Guardar</button>
+</form>
+
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Detalle</th><th>Actividad</th><th>Responsable</th><th>Inicio</th>
+          <th>Fin</th><th>Estado</th><th>Horas</th><th>Días</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for k in tasks %}
+      <tr>
+        <td>{{ k.id }}</td>
+        <td>{{ k.detalle }}</td>
+        <td>{{ k.actividad }}</td>
+        <td>{{ k.user.full }}</td>
+        <td>{{ k.inicio|fmt }}</td>
+        <td>{{ k.fin|fmt }}</td>
+        <td><span class="badge badge-{{ k.estado|lower|replace(' ', '-') }}">{{ k.estado }}</span></td>
+        <td>{{ '%.2f'|format(k.acumulado or 0) }}</td>
+        <td>{{ (k.fin.date() - k.inicio.date()).days + 1 if k.fin and k.inicio else '' }}</td>
+        <td class="actions">
+          {% if k.estado != 'Culminado' %}
+            {% for a, l in (('Iniciado', 'Iniciar'), ('Suspendido', 'Suspender'), ('Culminado', 'Culminar')) %}
+            <form method="post" action="/tarea/{{ k.id }}/{{ a }}">
+              <input type="hidden" name="_t" value="{{ t }}">
+              <button class="btn btn-sm">{{ l }}</button>
+            </form>
+            {% endfor %}
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="empty">Sin tareas registradas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
