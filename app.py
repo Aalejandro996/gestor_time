@@ -22,7 +22,9 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = "DATABASE_URL" in os.environ  # solo HTTPS en producción
 uri = os.environ.get("DATABASE_URL", "sqlite:///control_horas.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = uri.replace("postgres://", "postgresql://", 1)
+if uri.startswith(("postgres://", "postgresql://")):
+    uri = "postgresql+psycopg2://" + uri.split("://", 1)[1]  # driver explícito (psycopg2-binary)
+app.config["SQLALCHEMY_DATABASE_URI"] = uri
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)  # IP real detrás del proxy de Render
 db = SQLAlchemy(app)
 
