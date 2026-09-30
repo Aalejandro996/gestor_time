@@ -7,6 +7,8 @@ Aplicación web (Flask + PostgreSQL) para registrar horas por actividad, con rol
 - **Actividades:** Oficina, Sucursal, Finca, Casa.
 - **Estados:** Por Iniciar → Iniciado → Suspendido / Culminado. Solo se cuentan horas entre 8:00 y 17:00.
 
+**Sistema en línea:** https://control-horas-4dbq.onrender.com/login
+
 ## Estructura
 
 ```

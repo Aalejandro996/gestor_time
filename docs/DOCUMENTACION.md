@@ -52,7 +52,7 @@ servidor (decorador `login_required`), no en la interfaz.
   `TAREA_CULMINADO`, `TAREA_RECHAZADA`. Cada evento guarda fecha, usuario, detalle e IP.
 - El evento se escribe en la **misma transacción** que el cambio (excepto login/logout, que tienen su propio
   commit).
-- Las claves se almacenan con hash (Werkzeug) y nunca se registran en bitácora.
+- Las claves se almacenan con hash de Werkzeug (scrypt por defecto en la versión 3.x) y nunca se registran en bitácora.
 - Protección CSRF con token de sesión en todos los POST; cookies `HttpOnly`, `SameSite=Lax` y `Secure` en
   producción; IP real mediante `ProxyFix` tras el proxy de Render.
 - Autorización siempre en servidor; un Auditor que fuerce una URL o acción ajena recibe 403.
@@ -63,7 +63,8 @@ servidor (decorador `login_required`), no en la interfaz.
   use un rol de BD con `INSERT/SELECT` sobre `bitacora` (sin `UPDATE/DELETE`) y respaldos periódicos.
 - Las ediciones de tareas se registran por acción de estado, no por campo. No hay edición ni borrado de
   tareas o usuarios.
-- No hay bloqueo por intentos fallidos de login (los intentos quedan en bitácora); se recomienda añadirlo.
+- No hay bloqueo por intentos fallidos de login (los intentos quedan en bitácora), doble factor, expiración por inactividad, cambio o restablecimiento de clave, ni desactivación de usuarios; se recomienda añadirlos.
+- La bitácora de `TAREA_CREADA` guarda las horas calculadas, no el inicio y fin ingresados manualmente.
 - No hay exclusión de fines de semana ni feriados.
 - La zona horaria es única para toda la organización (`APP_TZ`).
 - Sin pruebas automatizadas incluidas.
@@ -74,3 +75,49 @@ servidor (decorador `login_required`), no en la interfaz.
 - Cambios de esquema: SQLAlchemy `create_all()` solo crea tablas nuevas; para modificar columnas
   existentes use una herramienta de migraciones (p. ej. Flask-Migrate).
 - Rotar `SECRET_KEY` cierra todas las sesiones activas.
+
+## 8. Alojamiento
+
+| Elemento | Detalle |
+|---|---|
+| URL | https://control-horas-4dbq.onrender.com/login |
+| Proveedor | Render (servicio web `control-horas` + PostgreSQL `control-horas-db`) |
+| Servidor de aplicación | gunicorn (`gunicorn app:app`) |
+| Código fuente | GitHub, rama `main`; cada push redespliega automáticamente |
+| Infraestructura | `render.yaml` (Blueprint) |
+| Zona horaria | `APP_TZ` (America/Caracas) |
+| Región y plan contratado | Completar según el panel de Render |
+
+Notas del plan gratuito de Render (render.com/docs/free): el servicio web se suspende tras 15 minutos sin
+tráfico, el sistema de archivos es efímero y la base Postgres gratuita expira a los 30 días (14 días de gracia
+antes de eliminarse con sus datos). Para datos de auditoría use planes de pago con respaldos.
+
+## 9. Pasos de despliegue
+
+1. Verificar que el repositorio no incluya `instance/` ni archivos `.db` (`.gitignore`).
+2. Definir el plan del servicio web en `render.yaml` (`plan: free` o `starter`).
+3. Render → **New → Blueprint** → seleccionar el repositorio → indicar `ADMIN_PASSWORD` → **Apply**.
+4. Revisar **Logs** hasta ver `Booting worker`; abrir la URL e ingresar como `admin`.
+5. Crear un Admin nominal y los usuarios Auditor desde **Usuarios**.
+6. Verificar `/bitacora` y el horario laboral (`APP_TZ`).
+7. Cambios posteriores: `git push` a `main`.
+
+Incidencias resueltas en el primer despliegue: las plantillas deben estar en `templates/` y el CSS en
+`static/`; la URL de Postgres se fuerza a `postgresql+psycopg2://` para usar el driver instalado
+(`psycopg2-binary`).
+
+## 10. Parámetros de seguridad
+
+| Parámetro | Valor |
+|---|---|
+| Hash de claves | Werkzeug `generate_password_hash` (scrypt por defecto en 3.x) |
+| Longitud mínima de clave | 8 caracteres |
+| Cookies de sesión | `HttpOnly`, `SameSite=Lax`, `Secure` cuando existe `DATABASE_URL` |
+| CSRF | Token de sesión aleatorio (16 bytes) en todos los POST; renovado al iniciar sesión |
+| Transporte | HTTPS provisto por Render; `ProxyFix` (1 proxy) para IP y esquema reales |
+| Acceso a datos | ORM SQLAlchemy con consultas parametrizadas |
+| Plantillas | Escape automático de Jinja |
+| Secretos | Variables de entorno (`SECRET_KEY` generada por Render); nunca en el repositorio |
+| Respuestas de error | 400 (CSRF inválido), 403 (rol no permitido), 404 (recurso inexistente) |
+
+Los controles pendientes y su priorización están en el informe técnico (`Informe_Sistema_Control_de_Horas.docx`).
