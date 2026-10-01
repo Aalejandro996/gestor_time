@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar finalización · Control de horas{% endblock %}
+{% block content %}
+<form method="post" class="card card-form">
+  <h2>Confirmar finalización de la tarea #{{ k.id }}</h2>
+  <p class="hint">{{ k.detalle }}<br>{{ k.actividad }} · {{ k.user.full }} · Inicio: {{ k.inicio|fmt }} · Horas acumuladas: {{ '%.2f'|format(k.acumulado or 0) }}</p>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="field">
+    <label for="fin">Fecha y hora de finalización</label>
+    <input id="fin" type="datetime-local" name="fin" value="{{ defecto }}" required>
+  </div>
+  <div class="field">
+    <label for="obs">Observación</label>
+    <textarea id="obs" name="obs" rows="3" required></textarea>
+  </div>
+  <div class="field">
+    <label class="check"><input type="checkbox" name="ok" required> Confirmo que la fecha y hora de finalización son correctas</label>
+  </div>
+  <p class="hint">Si la tarea inicia y termina el mismo día solo se contabilizan horas; si abarca varios días se mostrarán también los días.</p>
+  <button class="btn">Confirmar y culminar</button>
+  <a class="btn btn-sm btn-link" href="/">Cancelar</a>
+</form>
+{% endblock %}

@@ -66,6 +66,35 @@ class Bitacora(db.Model):
     ip = db.Column(db.String(45))
 
 
+class TareaNota(db.Model):
+    """Historial de una tarea: observación de cierre, justificación de reinicio y ediciones del detalle."""
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    fecha = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(TZ).replace(tzinfo=None, microsecond=0))
+    tipo = db.Column(db.String(20), nullable=False)  # CIERRE | REINICIO | EDICION
+    texto = db.Column(db.Text, nullable=False)
+    task = db.relationship("Task", backref=db.backref("notas", order_by="TareaNota.id"))
+    user = db.relationship("User")
+
+
+class Bloqueo(db.Model):
+    """Bloqueo temporal de un usuario (vacaciones, permisos, etc.) con motivo y justificativo."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    desde = db.Column(db.Date, nullable=False)
+    hasta = db.Column(db.Date, nullable=False)
+    dias = db.Column(db.Integer, nullable=False)
+    motivo = db.Column(db.String(40), nullable=False)
+    justificativo = db.Column(db.Text, nullable=False)
+    creado_por = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    creado_en = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(TZ).replace(tzinfo=None, microsecond=0))
+    anulado = db.Column(db.Boolean, nullable=False, default=False)
+    anulado_en = db.Column(db.DateTime)
+    user = db.relationship("User", foreign_keys=[user_id])
+    autor = db.relationship("User", foreign_keys=[creado_por])
+
+
 with app.app_context():
     db.create_all()
     if not User.query.first():
@@ -110,12 +139,28 @@ def log(accion, detalle="", usuario=None):
                             detalle=detalle, ip=request.remote_addr))
 
 
+def bloqueo_activo(uid):
+    """Bloqueo que impide el acceso hoy (no anulado y dentro de su período), o None."""
+    h = ahora().date()
+    return Bloqueo.query.filter(Bloqueo.user_id == uid, Bloqueo.anulado.is_(False),
+                                Bloqueo.desde <= h, Bloqueo.hasta >= h).first()
+
+
+def estado_bloqueo(b):
+    h = ahora().date()
+    return "Anulado" if b.anulado else "Programado" if b.desde > h else "Vigente" if b.hasta >= h else "Finalizado"
+
+
 def login_required(rol=None):
     def deco(f):
         @wraps(f)
         def w(*a, **k):
             u = current()
             if not u:
+                return redirect("/login")
+            if bloqueo_activo(u.id):
+                session.clear()
+                flash("Su cuenta está bloqueada. Contacte al administrador.")
                 return redirect("/login")
             if rol and u.rol != rol:
                 abort(403)
@@ -148,6 +193,12 @@ def login():
         nombre = request.form["username"].strip().lower()
         u = User.query.filter_by(username=nombre).first()
         if u and check_password_hash(u.pw, request.form["pw"]):
+            b = bloqueo_activo(u.id)
+            if b:
+                log("LOGIN_BLOQUEADO", f"hasta={b.hasta} motivo={b.motivo}", usuario=nombre)
+                db.session.commit()
+                flash(f"Su cuenta está bloqueada hasta el {b.hasta:%d/%m/%Y} ({b.motivo}). Contacte al administrador.")
+                return render_template("login.html")
             session.clear()
             session["uid"], session["_t"] = u.id, secrets.token_hex(16)
             log("LOGIN_OK", usuario=nombre)
@@ -200,12 +251,12 @@ def crear():
             return redirect("/")
         fin, seg = None, ini
     elif est == "Culminado":
-        if not ini:
-            flash("Indique la hora de inicio")
+        obs = f.get("obs", "").strip()
+        if not (ini and fin) or not f.get("ok") or not obs:
+            flash("Para culminar indique inicio y fin, confirme la fecha y hora y escriba la observación de cierre")
             return redirect("/")
-        fin = fin or ahora()
-        if fin < ini:
-            flash("El fin no puede ser anterior al inicio")
+        if fin < ini or fin > ahora():
+            flash("El fin no puede ser anterior al inicio ni una fecha futura")
             return redirect("/")
         acum = horas(ini, fin)
     else:
@@ -214,42 +265,131 @@ def crear():
              inicio=ini, fin=fin, estado=est, acumulado=acum, seg_inicio=seg)
     db.session.add(k)
     db.session.flush()  # asigna k.id para la bitácora
+    if est == "Culminado":
+        nota(k, "CIERRE", obs)
     log("TAREA_CREADA", f"tarea={k.id} responsable_id={uid} actividad={k.actividad} "
-                        f"estado={est} horas={acum:.2f}")
+                        f"estado={est} horas={acum:.2f} inicio={ini} fin={fin}")
     db.session.commit()
     return redirect("/")
+
+
+def propia(tid):
+    """Devuelve (usuario, tarea); un Auditor solo puede operar sobre sus propias tareas."""
+    u, k = current(), db.get_or_404(Task, tid)
+    if u.rol != "Admin" and k.user_id != u.id:
+        abort(403)
+    return u, k
+
+
+def nota(k, tipo, texto):
+    db.session.add(TareaNota(task_id=k.id, user_id=current().id, tipo=tipo, texto=texto))
+
+
+def dtl(d):
+    return d.strftime("%Y-%m-%dT%H:%M")
 
 
 @app.route("/tarea/<int:tid>/<nuevo>", methods=["POST"])
 @login_required()
 def accion(tid, nuevo):
-    u, t = current(), db.get_or_404(Task, tid)
-    if u.rol != "Admin" and t.user_id != u.id:
-        abort(403)
+    u, k = propia(tid)
     if nuevo not in ("Iniciado", "Suspendido", "Culminado"):
         abort(400)
     n, err = ahora(), None
-    if t.estado == "Culminado":
+    if k.estado == "Culminado":
         err = "La tarea ya está culminada"
     elif nuevo == "Iniciado":
-        if t.estado != "Iniciado":
-            if not laboral(n):
-                err = "Solo se puede iniciar entre 8:00 am y 5:00 pm"
-            else:
-                t.estado, t.seg_inicio, t.inicio, t.fin = "Iniciado", n, t.inicio or n, None
-    elif t.estado == "Por Iniciar":
+        if k.estado == "Iniciado":
+            return redirect("/")
+        if not laboral(n):
+            err = "Solo se puede iniciar entre 8:00 am y 5:00 pm"
+        elif k.estado == "Suspendido" and k.inicio and n.date() != k.inicio.date():
+            return redirect(f"/tarea/{k.id}/reiniciar")  # otro día: pide justificación y nueva fecha
+        else:
+            k.estado, k.seg_inicio, k.inicio, k.fin = "Iniciado", n, k.inicio or n, None
+    elif k.estado == "Por Iniciar":
         err = "La tarea aún no ha sido iniciada"
-    else:
-        if t.estado == "Iniciado" and t.seg_inicio:
-            t.acumulado += horas(t.seg_inicio, n)
-        t.estado, t.seg_inicio = nuevo, None
-        t.fin = n if nuevo == "Culminado" else None
+    elif nuevo == "Culminado":
+        return redirect(f"/tarea/{k.id}/culminar")  # pide confirmar fecha, hora y observación
+    else:  # Suspendido
+        if k.estado == "Iniciado" and k.seg_inicio:
+            k.acumulado += horas(k.seg_inicio, n)
+        k.estado, k.seg_inicio, k.fin = "Suspendido", None, None
     if err:
         flash(err)
-        log("TAREA_RECHAZADA", f"tarea={t.id} motivo={err}")
+        log("TAREA_RECHAZADA", f"tarea={k.id} motivo={err}")
     else:
-        log("TAREA_" + nuevo.upper(), f"tarea={t.id} estado={t.estado} horas_acum={t.acumulado:.2f}")
+        log("TAREA_" + nuevo.upper(), f"tarea={k.id} estado={k.estado} horas_acum={k.acumulado:.2f}")
     db.session.commit()
+    return redirect("/")
+
+
+@app.route("/tarea/<int:tid>/culminar", methods=["GET", "POST"])
+@login_required()
+def culminar(tid):
+    u, k = propia(tid)
+    if k.estado not in ("Iniciado", "Suspendido"):
+        flash("Solo se pueden culminar tareas iniciadas o suspendidas")
+        return redirect("/")
+    n = ahora()
+    if request.method == "POST":
+        try:
+            fin = parse(request.form.get("fin"))
+        except ValueError:
+            fin = None
+        obs = request.form.get("obs", "").strip()
+        piso = k.seg_inicio if k.estado == "Iniciado" else k.inicio
+        if not fin or fin > n or fin < piso or not obs or not request.form.get("ok"):
+            flash("Confirme la fecha y hora de fin (no futura ni anterior al inicio) y escriba la observación")
+        else:
+            if k.estado == "Iniciado":
+                k.acumulado += horas(k.seg_inicio, fin)
+            k.estado, k.fin, k.seg_inicio = "Culminado", fin, None
+            nota(k, "CIERRE", obs)
+            log("TAREA_CULMINADO", f"tarea={k.id} fin={fin} horas_acum={k.acumulado:.2f} hora_sistema={n}")
+            db.session.commit()
+            return redirect("/")
+    return render_template("culminar.html", k=k, defecto=dtl(n))
+
+
+@app.route("/tarea/<int:tid>/reiniciar", methods=["GET", "POST"])
+@login_required()
+def reiniciar(tid):
+    u, k = propia(tid)
+    if k.estado != "Suspendido":
+        flash("Solo se puede reiniciar una tarea suspendida")
+        return redirect("/")
+    n = ahora()
+    if request.method == "POST":
+        try:
+            ini = parse(request.form.get("ini"))
+        except ValueError:
+            ini = None
+        just = request.form.get("just", "").strip()
+        if not ini or ini > n or ini < k.inicio or not laboral(ini) or not just:
+            flash("Indique una fecha y hora de inicio válida (entre 8:00 y 17:00, no futura ni anterior al "
+                  "inicio original) y la justificación")
+        else:
+            k.estado, k.seg_inicio, k.fin = "Iniciado", ini, None
+            nota(k, "REINICIO", f"Nueva fecha de inicio {ini:%Y-%m-%d %H:%M}. Justificación: {just}")
+            log("TAREA_REINICIADA", f"tarea={k.id} nuevo_inicio={ini} horas_previas={k.acumulado:.2f}")
+            db.session.commit()
+            return redirect("/")
+    return render_template("reiniciar.html", k=k, defecto=dtl(n))
+
+
+@app.route("/tarea/<int:tid>/editar", methods=["POST"])
+@login_required()
+def editar(tid):
+    u, k = propia(tid)
+    nuevo = request.form.get("detalle", "").strip()
+    if not nuevo or len(nuevo) > 2000:
+        flash("El detalle no puede estar vacío ni superar 2000 caracteres")
+    elif nuevo != k.detalle:
+        nota(k, "EDICION", f"Antes: {k.detalle} | Después: {nuevo}")
+        log("TAREA_EDITADA", f"tarea={k.id}")
+        k.detalle = nuevo
+        db.session.commit()
     return redirect("/")
 
 
@@ -271,7 +411,48 @@ def usuarios():
             db.session.commit()
             flash("Usuario creado")
         return redirect("/usuarios")
-    return render_template("usuarios.html", users=User.query.order_by(User.id).all())
+    hist = [(b, estado_bloqueo(b)) for b in Bloqueo.query.order_by(Bloqueo.id.desc()).all()]
+    estado = {}
+    for b, e in reversed(hist):
+        if e in ("Vigente", "Programado"):
+            estado[b.user_id] = (e, b)
+    return render_template("usuarios.html", users=User.query.order_by(User.id).all(), hist=hist,
+                           estado=estado, hoy=ahora().date().isoformat())
+
+
+@app.route("/usuarios/bloquear", methods=["POST"])
+@login_required("Admin")
+def bloquear():
+    f = request.form
+    try:
+        uid, dias = int(f["uid"]), int(f["dias"])
+        desde = datetime.strptime(f["desde"], "%Y-%m-%d").date() if f.get("desde") else ahora().date()
+    except (ValueError, KeyError):
+        flash("Datos de bloqueo inválidos")
+        return redirect("/usuarios")
+    motivo, just = f.get("motivo", "").strip(), f.get("justificativo", "").strip()
+    u = db.session.get(User, uid)
+    if not u or u.id == current().id or not 1 <= dias <= 365 or not motivo or not just:
+        flash("Indique un usuario distinto del suyo, de 1 a 365 días, el motivo y el justificativo")
+        return redirect("/usuarios")
+    b = Bloqueo(user_id=u.id, desde=desde, dias=dias, hasta=desde + timedelta(days=dias - 1),
+                motivo=motivo, justificativo=just, creado_por=current().id)
+    db.session.add(b)
+    log("USUARIO_BLOQUEADO", f"usuario={u.username} desde={b.desde} hasta={b.hasta} dias={dias} motivo={motivo}")
+    db.session.commit()
+    flash(f"Usuario {u.username} bloqueado hasta el {b.hasta:%d/%m/%Y}")
+    return redirect("/usuarios")
+
+
+@app.route("/usuarios/<int:uid>/desbloquear", methods=["POST"])
+@login_required("Admin")
+def desbloquear(uid):
+    h = ahora().date()
+    for b in Bloqueo.query.filter(Bloqueo.user_id == uid, Bloqueo.anulado.is_(False), Bloqueo.hasta >= h):
+        b.anulado, b.anulado_en = True, ahora()
+        log("USUARIO_DESBLOQUEADO", f"usuario_id={uid} bloqueo={b.id}")
+    db.session.commit()
+    return redirect("/usuarios")
 
 
 # ---------- dashboard (solo Admin) ----------

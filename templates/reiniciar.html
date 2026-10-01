@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Reiniciar tarea · Control de horas{% endblock %}
+{% block content %}
+<form method="post" class="card card-form">
+  <h2>Reiniciar la tarea #{{ k.id }} en un día distinto al de inicio</h2>
+  <p class="hint">{{ k.detalle }}<br>{{ k.actividad }} · {{ k.user.full }} · Inicio original: {{ k.inicio|fmt }} · Horas acumuladas: {{ '%.2f'|format(k.acumulado or 0) }}. Las horas nuevas se sumarán a las anteriores.</p>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="field">
+    <label for="ini">Nueva fecha y hora de inicio (entre 8:00 y 17:00)</label>
+    <input id="ini" type="datetime-local" name="ini" value="{{ defecto }}" required>
+  </div>
+  <div class="field">
+    <label for="just">Justificación</label>
+    <textarea id="just" name="just" rows="3" required></textarea>
+  </div>
+  <button class="btn">Reiniciar tarea</button>
+  <a class="btn btn-sm btn-link" href="/">Cancelar</a>
+</form>
+{% endblock %}

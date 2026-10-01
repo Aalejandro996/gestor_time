@@ -83,3 +83,13 @@ th { color: var(--muted); font-size: .8rem; font-weight: 600; text-transform: up
 .badge-iniciado { background: #dbeafe; color: #1e40af; }
 .badge-culminado { background: #dcfce7; color: #166534; }
 .badge-suspendido { background: #fee2e2; color: #991b1b; }
+
+/* Formularios de confirmación, casillas y bloques desplegables */
+input[type="checkbox"] { width: auto; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: .9rem; }
+.card-form { max-width: 560px; margin: 30px auto; }
+.btn-link { display: inline-block; background: var(--muted); text-decoration: none; }
+details.inline { margin-top: 4px; font-size: .85rem; }
+details.inline summary { color: var(--primary); cursor: pointer; }
+details.inline textarea { margin: 6px 0; }
+.notas { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }

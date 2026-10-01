@@ -26,6 +26,8 @@ servidor (decorador `login_required`), no en la interfaz.
 - **User:** `id, nombre, apellido, username (único), pw (hash), rol (Admin|Auditor)`
 - **Task:** `id, detalle, actividad, user_id, inicio, fin, estado, acumulado (horas), seg_inicio`
 - **Bitacora:** `id, fecha, usuario, accion, detalle, ip`
+- **TareaNota:** `id, task_id (FK), user_id (FK), fecha, tipo (CIERRE|REINICIO|EDICION), texto`
+- **Bloqueo:** `id, user_id (FK), desde, hasta, dias, motivo, justificativo, creado_por (FK), creado_en, anulado, anulado_en`
 
 `seg_inicio` es el inicio del tramo activo; `acumulado` suma los tramos ya cerrados.
 
@@ -38,7 +40,7 @@ servidor (decorador `login_required`), no en la interfaz.
 4. Si inicio y fin caen en días distintos, se suma la franja laboral de cada día; lo transcurrido fuera de
    horario no cuenta y el conteo continúa a las 08:00 del día siguiente. La columna "Días" muestra los días
    calendario abarcados.
-5. Una tarea Culminada no puede modificarse. Una tarea Por Iniciar no puede suspenderse ni culminarse por
+5. Una tarea Culminada no puede cambiar de estado; solo puede editarse su detalle. Una tarea Por Iniciar no puede suspenderse ni culminarse por
    botón.
 6. Al registrar una tarea ya Culminada con inicio y fin manuales, las horas se calculan con la misma
    función. Fines de semana y feriados **no** se excluyen.
@@ -63,8 +65,7 @@ servidor (decorador `login_required`), no en la interfaz.
   use un rol de BD con `INSERT/SELECT` sobre `bitacora` (sin `UPDATE/DELETE`) y respaldos periódicos.
 - Las ediciones de tareas se registran por acción de estado, no por campo. No hay edición ni borrado de
   tareas o usuarios.
-- No hay bloqueo por intentos fallidos de login (los intentos quedan en bitácora), doble factor, expiración por inactividad, cambio o restablecimiento de clave, ni desactivación de usuarios; se recomienda añadirlos.
-- La bitácora de `TAREA_CREADA` guarda las horas calculadas, no el inicio y fin ingresados manualmente.
+- No hay bloqueo por intentos fallidos de login (los intentos quedan en bitácora), doble factor, expiración por inactividad, cambio o restablecimiento de clave, ni baja definitiva de usuarios (existe bloqueo temporal); se recomienda añadirlos.
 - No hay exclusión de fines de semana ni feriados.
 - La zona horaria es única para toda la organización (`APP_TZ`).
 - Sin pruebas automatizadas incluidas.
@@ -121,3 +122,75 @@ Incidencias resueltas en el primer despliegue: las plantillas deben estar en `te
 | Respuestas de error | 400 (CSRF inválido), 403 (rol no permitido), 404 (recurso inexistente) |
 
 Los controles pendientes y su priorización están en el informe técnico (`Informe_Sistema_Control_de_Horas.docx`).
+
+## 11. Ajustes de la versión 1.1
+
+| Ajuste | Comportamiento |
+|---|---|
+| Bloqueo de usuarios | El Admin bloquea una cuenta de 1 a 365 días desde una fecha, con motivo (Vacaciones, Permiso, Licencia, Otro) y justificativo obligatorios. Impide el ingreso y cierra sesiones abiertas. Se puede anular antes de tiempo. Historial en `/usuarios`. |
+| Culminar una tarea | Pantalla de confirmación con fecha y hora de fin (no futura ni anterior al inicio) y observación obligatoria. En el registro manual se exige casilla de confirmación y observación. |
+| Mismo día | Si inicio y fin son del mismo día solo se muestran horas; la columna "Días" se muestra únicamente cuando abarca varios días. |
+| Reinicio en otro día | Una tarea suspendida que se reanuda en un día distinto al de inicio exige justificación y nueva fecha y hora de inicio (8:00–17:00, no futura ni anterior al inicio). Las horas nuevas se suman a las acumuladas. |
+| Edición | Auditor (sus tareas) y Admin (todas) editan solo el detalle desde la tabla principal; antes y después quedan en `tarea_nota`. |
+
+Nuevos eventos de bitácora: `LOGIN_BLOQUEADO`, `USUARIO_BLOQUEADO`, `USUARIO_DESBLOQUEADO`, `TAREA_REINICIADA`,
+`TAREA_EDITADA`. `TAREA_CREADA` ahora incluye inicio y fin.
+
+Despliegue: `db.create_all()` crea las tablas nuevas (`tarea_nota`, `bloqueo`) al arrancar; no modifica columnas
+de tablas existentes (esta versión no las cambia).
+
+## 12. Esquema de la base de datos y arquitectura
+
+![Arquitectura](arquitectura.png)
+
+![Modelo entidad-relación](esquema_bd.png)
+
+```mermaid
+erDiagram
+    USER ||--o{ TASK : "responsable"
+    TASK ||--o{ TAREA_NOTA : "historial"
+    USER ||--o{ TAREA_NOTA : "autor"
+    USER ||--o{ BLOQUEO : "bloqueado"
+    USER ||--o{ BLOQUEO : "registrado por"
+    USER { int id PK
+           string nombre
+           string apellido
+           string username UK
+           string pw
+           string rol }
+    TASK { int id PK
+           text detalle
+           string actividad
+           int user_id FK
+           datetime inicio
+           datetime fin
+           string estado
+           float acumulado
+           datetime seg_inicio }
+    TAREA_NOTA { int id PK
+           int task_id FK
+           int user_id FK
+           datetime fecha
+           string tipo
+           text texto }
+    BLOQUEO { int id PK
+           int user_id FK
+           date desde
+           date hasta
+           int dias
+           string motivo
+           text justificativo
+           int creado_por FK
+           datetime creado_en
+           bool anulado
+           datetime anulado_en }
+    BITACORA { int id PK
+           datetime fecha
+           string usuario
+           string accion
+           text detalle
+           string ip }
+```
+
+`bitacora.usuario` guarda el nombre de usuario como texto (sin clave foránea) para conservar la evidencia.
+La aplicación no elimina registros: no existen rutas de borrado.

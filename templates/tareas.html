@@ -38,6 +38,13 @@
         {% for e in ESTADOS %}<option>{{ e }}</option>{% endfor %}
       </select>
     </div>
+    <div class="field span-all">
+      <label for="obs">Observación de cierre (obligatoria si el estado es Culminado)</label>
+      <textarea id="obs" name="obs" rows="2"></textarea>
+    </div>
+    <div class="field span-all">
+      <label class="check"><input type="checkbox" name="ok"> Confirmo que la fecha y hora de inicio y de fin son correctas (solo para Culminado)</label>
+    </div>
   </div>
   <button class="btn">Guardar</button>
 </form>
@@ -52,14 +59,32 @@
       {% for k in tasks %}
       <tr>
         <td>{{ k.id }}</td>
-        <td>{{ k.detalle }}</td>
+        <td>
+          {{ k.detalle }}
+          <details class="inline">
+            <summary>Editar detalle</summary>
+            <form method="post" action="/tarea/{{ k.id }}/editar">
+              <input type="hidden" name="_t" value="{{ t }}">
+              <textarea name="detalle" rows="2" maxlength="2000" required>{{ k.detalle }}</textarea>
+              <button class="btn btn-sm">Guardar</button>
+            </form>
+          </details>
+          {% if k.notas %}
+          <details class="inline">
+            <summary>Historial ({{ k.notas|length }})</summary>
+            <ul class="notas">
+              {% for n in k.notas %}<li><strong>{{ n.tipo }}</strong> · {{ n.fecha|fmt }} · {{ n.user.full }}: {{ n.texto }}</li>{% endfor %}
+            </ul>
+          </details>
+          {% endif %}
+        </td>
         <td>{{ k.actividad }}</td>
         <td>{{ k.user.full }}</td>
         <td>{{ k.inicio|fmt }}</td>
         <td>{{ k.fin|fmt }}</td>
         <td><span class="badge badge-{{ k.estado|lower|replace(' ', '-') }}">{{ k.estado }}</span></td>
         <td>{{ '%.2f'|format(k.acumulado or 0) }}</td>
-        <td>{{ (k.fin.date() - k.inicio.date()).days + 1 if k.fin and k.inicio else '' }}</td>
+        <td>{{ (k.fin.date() - k.inicio.date()).days + 1 if k.fin and k.inicio and k.fin.date() != k.inicio.date() else '' }}</td>
         <td class="actions">
           {% if k.estado != 'Culminado' %}
             {% for a, l in (('Iniciado', 'Iniciar'), ('Suspendido', 'Suspender'), ('Culminado', 'Culminar')) %}

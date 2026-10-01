@@ -20,12 +20,63 @@
   <button class="btn">Crear usuario</button>
 </form>
 
+<form method="post" action="/usuarios/bloquear" class="card">
+  <h2>Bloquear usuario por días</h2>
+  <p class="hint">Para vacaciones, permisos u otras ausencias. El usuario no podrá ingresar durante el período indicado.</p>
+  <input type="hidden" name="_t" value="{{ t }}">
+  <div class="grid">
+    <div class="field">
+      <label for="uid">Usuario</label>
+      <select id="uid" name="uid" required>
+        {% for u in users if u.id != me.id %}<option value="{{ u.id }}">{{ u.full }} ({{ u.username }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label for="desde">Desde</label><input id="desde" type="date" name="desde" value="{{ hoy }}" required></div>
+    <div class="field"><label for="dias">Cantidad de días (1 a 365)</label><input id="dias" type="number" name="dias" min="1" max="365" required></div>
+    <div class="field">
+      <label for="motivo">Motivo</label>
+      <select id="motivo" name="motivo"><option>Vacaciones</option><option>Permiso</option><option>Licencia</option><option>Otro</option></select>
+    </div>
+    <div class="field span-all"><label for="justificativo">Justificativo</label><textarea id="justificativo" name="justificativo" rows="2" required></textarea></div>
+  </div>
+  <button class="btn">Bloquear</button>
+</form>
+
 <div class="card table-wrap">
+  <h2>Usuarios</h2>
   <table>
-    <thead><tr><th>Nombre y apellido</th><th>Usuario</th><th>Rol</th></tr></thead>
+    <thead><tr><th>Nombre y apellido</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
     <tbody>
       {% for u in users %}
-      <tr><td>{{ u.full }}</td><td>{{ u.username }}</td><td>{{ u.rol }}</td></tr>
+      {% set e = estado.get(u.id) %}
+      <tr>
+        <td>{{ u.full }}</td><td>{{ u.username }}</td><td>{{ u.rol }}</td>
+        <td>{% if e %}{{ e[0] }}: {{ e[1].desde }} a {{ e[1].hasta }} ({{ e[1].motivo }}){% else %}Activo{% endif %}</td>
+        <td class="actions">
+          {% if e %}
+          <form method="post" action="/usuarios/{{ u.id }}/desbloquear">
+            <input type="hidden" name="_t" value="{{ t }}"><button class="btn btn-sm">Desbloquear</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card table-wrap">
+  <h2>Historial de bloqueos</h2>
+  <table>
+    <thead><tr><th>Usuario</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Motivo</th><th>Justificativo</th><th>Registrado por</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for b, e in hist %}
+      <tr>
+        <td>{{ b.user.full }}</td><td>{{ b.desde }}</td><td>{{ b.hasta }}</td><td>{{ b.dias }}</td>
+        <td>{{ b.motivo }}</td><td>{{ b.justificativo }}</td><td>{{ b.autor.full }}</td><td>{{ e }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty">Sin bloqueos registrados.</td></tr>
       {% endfor %}
     </tbody>
   </table>
