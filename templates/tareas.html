@@ -5,11 +5,11 @@
   <input type="hidden" name="_t" value="{{ t }}">
   <div class="grid">
     <div class="field span-all">
-      <label for="detalle">Detalle / Observación</label>
+      <label for="detalle">Descripcion</label>
       <textarea id="detalle" name="detalle" rows="2" required></textarea>
     </div>
     <div class="field">
-      <label for="actividad">Actividad</label>
+      <label for="actividad">Tipo de Actividad</label>
       <select id="actividad" name="actividad">
         {% for a in ACT %}<option>{{ a }}</option>{% endfor %}
       </select>
@@ -39,11 +39,11 @@
       </select>
     </div>
     <div class="field span-all">
-      <label for="obs">Observación de cierre (obligatoria si el estado es Culminado)</label>
+      <label for="obs">Observación de cierre (Obligatoria si el estado es Culminado)</label>
       <textarea id="obs" name="obs" rows="2"></textarea>
     </div>
     <div class="field span-all">
-      <label class="check"><input type="checkbox" name="ok"> Confirmo que la fecha y hora de inicio y de fin son correctas (solo para Culminado)</label>
+      <label class="check"><input type="checkbox" name="ok"> Confirmo que la fecha y hora de inicio y de fin son correctas (Solo para Culminado)</label>
     </div>
   </div>
   <button class="btn">Guardar</button>
