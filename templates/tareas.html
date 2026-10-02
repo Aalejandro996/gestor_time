@@ -5,11 +5,11 @@
   <input type="hidden" name="_t" value="{{ t }}">
   <div class="grid">
     <div class="field span-all">
-      <label for="detalle">Descripcion</label>
+      <label for="detalle">Detalle / Observación</label>
       <textarea id="detalle" name="detalle" rows="2" required></textarea>
     </div>
     <div class="field">
-      <label for="actividad">Tipo de Actividad</label>
+      <label for="actividad">Actividad</label>
       <select id="actividad" name="actividad">
         {% for a in ACT %}<option>{{ a }}</option>{% endfor %}
       </select>
@@ -25,7 +25,7 @@
     </div>
     {% endif %}
     <div class="field">
-      <label for="ini">Hora de inicio</label>
+      <label for="ini">Hora de inicio (no se registra en Por Iniciar)</label>
       <input id="ini" type="datetime-local" name="ini">
     </div>
     <div class="field">
@@ -39,11 +39,11 @@
       </select>
     </div>
     <div class="field span-all">
-      <label for="obs">Observación de cierre (Obligatoria si el estado es Culminado)</label>
+      <label for="obs">Observación de cierre (obligatoria si el estado es Culminado)</label>
       <textarea id="obs" name="obs" rows="2"></textarea>
     </div>
     <div class="field span-all">
-      <label class="check"><input type="checkbox" name="ok"> Confirmo que la fecha y hora de inicio y de fin son correctas (Solo para Culminado)</label>
+      <label class="check"><input type="checkbox" name="ok"> Confirmo que la fecha y hora de inicio y de fin son correctas (solo para Culminado)</label>
     </div>
   </div>
   <button class="btn">Guardar</button>
@@ -80,7 +80,7 @@
         </td>
         <td>{{ k.actividad }}</td>
         <td>{{ k.user.full }}</td>
-        <td>{{ k.inicio|fmt }}</td>
+        <td>{{ k.inicio|fmt if k.estado != 'Por Iniciar' }}</td>
         <td>{{ k.fin|fmt }}</td>
         <td><span class="badge badge-{{ k.estado|lower|replace(' ', '-') }}">{{ k.estado }}</span></td>
         <td>{{ '%.2f'|format(k.acumulado or 0) }}</td>

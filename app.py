@@ -259,6 +259,8 @@ def crear():
             flash("El fin no puede ser anterior al inicio ni una fecha futura")
             return redirect("/")
         acum = horas(ini, fin)
+    elif est == "Por Iniciar":
+        ini = fin = None  # una tarea por iniciar no registra fecha ni hora
     else:
         fin = None
     k = Task(detalle=f["detalle"].strip(), actividad=f["actividad"], user_id=uid,
@@ -306,7 +308,8 @@ def accion(tid, nuevo):
         elif k.estado == "Suspendido" and k.inicio and n.date() != k.inicio.date():
             return redirect(f"/tarea/{k.id}/reiniciar")  # otro día: pide justificación y nueva fecha
         else:
-            k.estado, k.seg_inicio, k.inicio, k.fin = "Iniciado", n, k.inicio or n, None
+            k.estado, k.seg_inicio, k.inicio, k.fin = (
+                "Iniciado", n, k.inicio if k.estado == "Suspendido" else n, None)
     elif k.estado == "Por Iniciar":
         err = "La tarea aún no ha sido iniciada"
     elif nuevo == "Culminado":
